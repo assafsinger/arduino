@@ -28,7 +28,7 @@ void DHT::begin(void) {
   // >= MIN_INTERVAL right away. Note that this assignment wraps around,
   // but so will the subtraction.
   _lastreadtime = -MIN_INTERVAL;
-  DEBUG_PRINT("Max clock cycles: "); DEBUG_PRINTLN(_maxcycles, DEC);
+//  DEBUG_PRINT("Max clock cycles: "); DEBUG_PRINTLN(_maxcycles, DEC);
 }
 
 //boolean S == Scale.  True == Fahrenheit; False == Celcius
@@ -89,36 +89,36 @@ float DHT::readHumidity(bool force) {
 }
 
 //boolean isFahrenheit: True == Fahrenheit; False == Celcius
-float DHT::computeHeatIndex(float temperature, float percentHumidity, bool isFahrenheit) {
-  // Using both Rothfusz and Steadman's equations
-  // http://www.wpc.ncep.noaa.gov/html/heatindex_equation.shtml
-  float hi;
-
-  if (!isFahrenheit)
-    temperature = convertCtoF(temperature);
-
-  hi = 0.5 * (temperature + 61.0 + ((temperature - 68.0) * 1.2) + (percentHumidity * 0.094));
-
-  if (hi > 79) {
-    hi = -42.379 +
-             2.04901523 * temperature +
-            10.14333127 * percentHumidity +
-            -0.22475541 * temperature*percentHumidity +
-            -0.00683783 * pow(temperature, 2) +
-            -0.05481717 * pow(percentHumidity, 2) +
-             0.00122874 * pow(temperature, 2) * percentHumidity +
-             0.00085282 * temperature*pow(percentHumidity, 2) +
-            -0.00000199 * pow(temperature, 2) * pow(percentHumidity, 2);
-
-    if((percentHumidity < 13) && (temperature >= 80.0) && (temperature <= 112.0))
-      hi -= ((13.0 - percentHumidity) * 0.25) * sqrt((17.0 - abs(temperature - 95.0)) * 0.05882);
-
-    else if((percentHumidity > 85.0) && (temperature >= 80.0) && (temperature <= 87.0))
-      hi += ((percentHumidity - 85.0) * 0.1) * ((87.0 - temperature) * 0.2);
-  }
-
-  return isFahrenheit ? hi : convertFtoC(hi);
-}
+//float DHT::computeHeatIndex(float temperature, float percentHumidity, bool isFahrenheit) {
+//  // Using both Rothfusz and Steadman's equations
+//  // http://www.wpc.ncep.noaa.gov/html/heatindex_equation.shtml
+//  float hi;
+//
+//  if (!isFahrenheit)
+//    temperature = convertCtoF(temperature);
+//
+//  hi = 0.5 * (temperature + 61.0 + ((temperature - 68.0) * 1.2) + (percentHumidity * 0.094));
+//
+//  if (hi > 79) {
+//    hi = -42.379 +
+//             2.04901523 * temperature +
+//            10.14333127 * percentHumidity +
+//            -0.22475541 * temperature*percentHumidity +
+//            -0.00683783 * pow(temperature, 2) +
+//            -0.05481717 * pow(percentHumidity, 2) +
+//             0.00122874 * pow(temperature, 2) * percentHumidity +
+//             0.00085282 * temperature*pow(percentHumidity, 2) +
+//            -0.00000199 * pow(temperature, 2) * pow(percentHumidity, 2);
+//
+//    if((percentHumidity < 13) && (temperature >= 80.0) && (temperature <= 112.0))
+//      hi -= ((13.0 - percentHumidity) * 0.25) * sqrt((17.0 - abs(temperature - 95.0)) * 0.05882);
+//
+//    else if((percentHumidity > 85.0) && (temperature >= 80.0) && (temperature <= 87.0))
+//      hi += ((percentHumidity - 85.0) * 0.1) * ((87.0 - temperature) * 0.2);
+//  }
+//
+//  return isFahrenheit ? hi : convertFtoC(hi);
+//}
 
 boolean DHT::read(bool force) {
   // Check if sensor was read less than two seconds ago and return early
@@ -162,12 +162,12 @@ boolean DHT::read(bool force) {
     // First expect a low signal for ~80 microseconds followed by a high signal
     // for ~80 microseconds again.
     if (expectPulse(LOW) == 0) {
-      DEBUG_PRINTLN(F("Timeout waiting for start signal low pulse."));
+//      DEBUG_PRINTLN(F("Timeout waiting for start signal low pulse."));
       _lastresult = false;
       return _lastresult;
     }
     if (expectPulse(HIGH) == 0) {
-      DEBUG_PRINTLN(F("Timeout waiting for start signal high pulse."));
+//      DEBUG_PRINTLN(F("Timeout waiting for start signal high pulse."));
       _lastresult = false;
       return _lastresult;
     }
@@ -192,7 +192,7 @@ boolean DHT::read(bool force) {
     uint32_t lowCycles  = cycles[2*i];
     uint32_t highCycles = cycles[2*i+1];
     if ((lowCycles == 0) || (highCycles == 0)) {
-      DEBUG_PRINTLN(F("Timeout waiting for pulse."));
+//      DEBUG_PRINTLN(F("Timeout waiting for pulse."));
       _lastresult = false;
       return _lastresult;
     }
@@ -207,13 +207,13 @@ boolean DHT::read(bool force) {
     // stored data.
   }
 
-  DEBUG_PRINTLN(F("Received:"));
-  DEBUG_PRINT(data[0], HEX); DEBUG_PRINT(F(", "));
-  DEBUG_PRINT(data[1], HEX); DEBUG_PRINT(F(", "));
-  DEBUG_PRINT(data[2], HEX); DEBUG_PRINT(F(", "));
-  DEBUG_PRINT(data[3], HEX); DEBUG_PRINT(F(", "));
-  DEBUG_PRINT(data[4], HEX); DEBUG_PRINT(F(" =? "));
-  DEBUG_PRINTLN((data[0] + data[1] + data[2] + data[3]) & 0xFF, HEX);
+//  DEBUG_PRINTLN(F("Received:"));
+//  DEBUG_PRINT(data[0], HEX); DEBUG_PRINT(F(", "));
+//  DEBUG_PRINT(data[1], HEX); DEBUG_PRINT(F(", "));
+//  DEBUG_PRINT(data[2], HEX); DEBUG_PRINT(F(", "));
+//  DEBUG_PRINT(data[3], HEX); DEBUG_PRINT(F(", "));
+//  DEBUG_PRINT(data[4], HEX); DEBUG_PRINT(F(" =? "));
+//  DEBUG_PRINTLN((data[0] + data[1] + data[2] + data[3]) & 0xFF, HEX);
 
   // Check we read 40 bits and that the checksum matches.
   if (data[4] == ((data[0] + data[1] + data[2] + data[3]) & 0xFF)) {
@@ -221,7 +221,7 @@ boolean DHT::read(bool force) {
     return _lastresult;
   }
   else {
-    DEBUG_PRINTLN(F("Checksum failure!"));
+//    DEBUG_PRINTLN(F("Checksum failure!"));
     _lastresult = false;
     return _lastresult;
   }

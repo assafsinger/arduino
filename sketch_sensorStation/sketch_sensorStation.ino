@@ -1,7 +1,7 @@
 #include <VirtualWire.h>
 #include <DHT.h>
 
-#define MYID 1      //the ID number of this board.  Change this for each board you flash.
+#define MYID 2      //the ID number of this board.  Change this for each board you flash.
                     //The ID will be transmitted with the data so you can tell which device is transmitting
 #define TRANSPIN 7  //what pin to transmit on
 #define DHTPIN 6     // what pin the DHT is connected to
