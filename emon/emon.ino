@@ -16,9 +16,7 @@
 // 5 next one minute away from each other
 // get to normal pace
 
-//#define MEASUREMENT_INTERVAL_S 30
 #define MEASUREMENT_INTERVAL_S 30
-//#define WIFI_UODATE_INTERVAL_M 30
 #define WIFI_UODATE_INTERVAL_M 10
 #define MEASUREMENTS_SIZE (int)(1.05*(60/MEASUREMENT_INTERVAL_S)*WIFI_UODATE_INTERVAL_M)
 
@@ -49,61 +47,6 @@ unsigned long millisOffest_l = 0;
 int onboardLED = 13;
 int BATTERY_SENSE_PIN = A1; 
 int oldBatteryPcnt = 0;
-
-
-
-// watchdog
-//volatile int f_wdt=1;
-//
-//ISR(WDT_vect)
-//{
-//  if(f_wdt == 0)
-//  {
-//    f_wdt=1;
-//  }
-//  else
-//  {
-//    //Serial.println("WDT Overrun!!!");
-//  }
-//}
-//
-//void enterSleep(unsigned int seconds)
-//{
-//  f_wdt = 0;
-//  set_sleep_mode(SLEEP_MODE_PWR_DOWN);   /* EDIT: could also use SLEEP_MODE_PWR_DOWN for lowest power consumption. */
-//  sleep_enable();
-//  
-//  /* Now enter sleep mode. */
-//  for (int i=0;i<seconds;i++){
-//    sleep_mode();
-//  }
-//  
-//  /* The program will continue from here after the WDT timeout*/
-//  sleep_disable(); /* First thing to do is disable sleep. */
-//  
-//  /* Re-enable the peripherals. */
-//  power_all_enable();
-//}
-//
-//void initializeWatchdog(){
-//    /*** Setup the WDT ***/
-//  
-//  /* Clear the reset flag. */
-//  MCUSR &= ~(1<<WDRF);
-//  
-//  /* In order to change WDE or the prescaler, we need to
-//   * set WDCE (This will allow updates for 4 clock cycles).
-//   */
-//  WDTCSR |= (1<<WDCE) | (1<<WDE);
-//
-//  /* set new watchdog timeout prescaler value */
-//  WDTCSR = 1<<WDP1 | 1<<WDP2; /* 1.0 seconds */
-//  
-//  /* Enable the WD interrupt (note no reset). */
-//  WDTCSR |= _BV(WDIE);
-//}
-//
-
 
 // how many times remain to sleep before wake up
 int nbr_remaining; 
@@ -323,18 +266,9 @@ void blink(int times){
   }
 }
 
-//void lowPowerSleep(int seconds){
-//  Serial.print("sleep ");
-//  Serial.println(seconds);
-//  for (int i=0; i<seconds; i++){
-//    LowPower.powerDown(SLEEP_1S, ADC_OFF, BOD_OFF);
-//  }
-//}
-
-  
-  long millisOffset(){
+long millisOffset(){
     return millis() + millisOffest_l;
-  }
+}
 
   float getBatteryLevel(){
     int sensorValue = analogRead(BATTERY_SENSE_PIN);
