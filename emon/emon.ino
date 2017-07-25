@@ -17,7 +17,8 @@
 // get to normal pace
 
 #define MEASUREMENT_INTERVAL_S 30
-#define WIFI_UODATE_INTERVAL_M 10
+//#define WIFI_UODATE_INTERVAL_M 10
+#define WIFI_UODATE_INTERVAL_M 5
 #define MEASUREMENTS_SIZE (int)(1.05*(60/MEASUREMENT_INTERVAL_S)*WIFI_UODATE_INTERVAL_M)
 
 
@@ -131,7 +132,7 @@ void setup()
 {  
   blink(5);
   wifi.restart();
-  analogReference(INTERNAL);
+  analogReference(DEFAULT);
 // configure the watchdog
   configure_wdt();
   Serial.begin(9600);
@@ -139,7 +140,7 @@ void setup()
   Serial.println(measurements_size);
   pinMode(CHPD_PIN, OUTPUT); //esp01 chip core
   pinMode(onboardLED, OUTPUT);     
-  emon1.current(0, 90);             // Current: input pin, calibration.
+  emon1.current(2, 90);             // Current: input pin, calibration.
   digitalWrite(CHPD_PIN, HIGH);
   bool connected = connectToWifi();
   if (!saveEnergy){
@@ -247,7 +248,7 @@ void send_measurements(int measurements_count, unsigned long referrenceTime){
   if (saveEnergy){
     digitalWrite(CHPD_PIN, LOW);
   }
-  Serial.print("Sent data in ");
+  Serial.print(F("Sent data in "));
   Serial.println(millis() - startTimeLocal);
   startTimeLocal = millis();
   unsigned long totalTime = millis() - startTime;
@@ -275,17 +276,28 @@ long millisOffset(){
     
     // 1M, 470K divider across battery and using internal ADC ref of 1.1V
     // Sense point is bypassed with 0.1 uF cap to reduce noise at that point
-    // ((1e6+470e3)/470e3)*1.1 = Vmax = 3.44 Volts
-    // 3.44/1023 = Volts per bit = 0.003363075
+    // ((1e6+470e3)/470e3)*3.3 = Vmax = 10.41 Volts
+    // 10.41/1023 = Volts per bit = 0.010180945
 
-    float batteryV  = sensorValue * 0.003363075;
-    Serial.print("Battery Voltage: ");
+    float batteryV  = sensorValue * 0.010180945;
+    Serial.print(F("Battery Voltage: "));
     Serial.print(batteryV);
     Serial.println(" V");
 
     return batteryV;
   }
 
+//debug
+//void loop(){
+//  double Irms = emon1.calcIrms(1480);  // Calculate Irms only
+// Serial.print("IRMS:");
+// Serial.println(Irms*230.0); 
+// //Serial.print("VOlts:");
+// //Serial.println(getBatteryLevel());
+// 
+// delay(500);
+//
+//}
 
 void loop()
 // send the first sample right away
@@ -315,18 +327,12 @@ void loop()
   //blink(2);
   measurementTime = millisOffset();
   double Irms = emon1.calcIrms(1480);  // Calculate Irms only
-  measurements[measurements_count] = Irms*220.0; 
+  measurements[measurements_count] = Irms*230.0; 
   intervals[measurements_count] = (measurementTime-time)/1000.0; //time diff from cycle start
-  //Serial.println((measurementTime-time)/1000.0);
-  //Serial.print(Irms*220.0);         // Apparent power
-  //Serial.print(" ");
-  //Serial.println(Irms);          // Irms
   measurements_count++;
-//  lowPowerSleep(MEASUREMENT_INTERVAL_S - ((millis()-measurementTime)/1000));
     digitalWrite(onboardLED, LOW);
     sleep(MEASUREMENT_INTERVAL_S);
     digitalWrite(onboardLED, HIGH);
-//delay(MEASUREMENT_INTERVAL_S*1000 - ((millis()-measurementTime)));
   if (iteration<=3){
       iteration++;
   }
