@@ -17,9 +17,12 @@
 // get to normal pace
 
 #define MEASUREMENT_INTERVAL_S 30
-//#define WIFI_UODATE_INTERVAL_M 10
-#define WIFI_UODATE_INTERVAL_M 5
-#define MEASUREMENTS_SIZE (int)(1.05*(60/MEASUREMENT_INTERVAL_S)*WIFI_UODATE_INTERVAL_M)
+//#define WIFI_UODATE_INTERVAL_M 15
+#define MAX_TIME_BETWEEN_MEASUREMENTS_S 120
+#define MAX_MEASUREMENT_DIFF 20 //in Watts
+#define WIFI_UODATE_INTERVAL_M 20
+//#define MEASUREMENTS_SIZE (int)(1.05*(60/MEASUREMENT_INTERVAL_S)*WIFI_UODATE_INTERVAL_M)
+#define MEASUREMENTS_SIZE 10
 
 
 #if DEBUG_AS
@@ -299,50 +302,134 @@ long millisOffset(){
 //
 //}
 
-void loop()
-// send the first sample right away
-// 5 next one minute away from each other
-// get to normal pace
 
-{
+
+void loop(){
+
   static int measurements_count = 0;
+  static unsigned long lastMeasurementTS = -1000000;
   static unsigned long time = millis();
-  static unsigned long measurementTime = 0;
-  static unsigned short iteration = 0;
+  static short firstRun = 1;
+  static long WIFI_UODATE_INTERVAL_MS = WIFI_UODATE_INTERVAL_M*60*1000;
 
 
+  //take one measurement
+  digitalWrite(onboardLED, HIGH);
+  double watts = emon1.calcIrms(1480) * 230;  // Calculate Irms only nd convert to Watts
+  unsigned long measurementTime = millisOffset();
 
   
+  Serial.print(F("Took measurement of "));
+  Serial.print(watts);
+  Serial.println(F(" watts."));
+
+  Serial.print(F("measurementTime - lastMeasurementTS = "));
+  Serial.println(measurementTime - lastMeasurementTS);
+
+  Serial.print(F("measurements_count="));
+  Serial.println(measurements_count);
+
+  if (measurements_count>0){
+    Serial.print(F("last measurement was = "));
+    Serial.print(measurements[measurements_count-1]);
+    Serial.print(F(" so diff is "));
+    Serial.println(measurements[measurements_count-1] - watts);
+  }
   
-  if ((millisOffset() - time)/(1000*60)  >= WIFI_UODATE_INTERVAL_M || measurements_count >= measurements_size || iteration>0 && iteration<=1){
-    Serial.print(F("Measurements. Time:"));
-    Serial.println(millisOffset() - time);
+  
+  
+  // if too long has passed since last measurement, or measrement diff from last measurement is too big, save to buffer
+  if (((measurementTime - lastMeasurementTS)/1000 > MAX_TIME_BETWEEN_MEASUREMENTS_S) || measurements_count==0 || (measurements_count>0 && measurements[measurements_count-1] - watts > MAX_MEASUREMENT_DIFF)){
+          measurements[measurements_count] = watts;
+          intervals[measurements_count] = (measurementTime-time)/1000.0; //time diff from cycle start
+          measurements_count++; 
+          lastMeasurementTS = measurementTime;
+          Serial.println(F("Measurement added to buffer"));
+      }
+
+
+    Serial.print(F("Buffer utilization is "));
+    Serial.print(measurements_count);
+    Serial.print(F("/"));
+    Serial.println(measurements_size);
+
+    
+    Serial.print(F("Time since last flush="));   
+    Serial.print((millisOffset() - time)/(1000));   
+    Serial.println(F(" seconds."));   
+    Serial.print(F("Next flush schaduled in "));   
+    Serial.print((long) (WIFI_UODATE_INTERVAL_M*60 - (millisOffset() - time)/(1000))); 
+    Serial.println(F(" seconds."));   
+
+    Serial.flush();
+
+
+
+   //if buffer is full, or too long has passed since last send, send buffer
+   long timeLeftToSync_M = (millisOffset() - time)/(1000*60L);
+   if (firstRun || (timeLeftToSync_M  >= WIFI_UODATE_INTERVAL_M) || measurements_count >= measurements_size){
+    Serial.println(F("Fluhing now!"));   
     send_measurements(measurements_count, millisOffset()-time);
     measurements_count = 0;
-    Serial.print(F("Cycle. Time:"));
-    Serial.println(millisOffset() - time);
     time = millisOffset();
-  } 
-
-  //blink(2);
-  measurementTime = millisOffset();
-  double Irms = emon1.calcIrms(1480);  // Calculate Irms only
-  measurements[measurements_count] = Irms*230.0; 
-  intervals[measurements_count] = (measurementTime-time)/1000.0; //time diff from cycle start
-  measurements_count++;
-    digitalWrite(onboardLED, LOW);
-    sleep(MEASUREMENT_INTERVAL_S);
-    digitalWrite(onboardLED, HIGH);
-  if (iteration<=3){
-      iteration++;
+    firstRun = 0;
   }
 
-    Serial.print(F("Took "));
-    Serial.print(measurements_count);
-    Serial.print(F(" measurements out of "));
-    Serial.println(measurements_size);
-    Serial.print(F("Update will be sent in "));
-    Serial.print(WIFI_UODATE_INTERVAL_M*60 - (millisOffset() - time)/(1000));
-    Serial.println(F(" seconds"));
+  Serial.flush();
+
+  unsigned long sleepTime_s = MEASUREMENT_INTERVAL_S - (millisOffset() - measurementTime)/1000;
+  Serial.print(F("Going to sleep for: "));   
+  Serial.print(sleepTime_s);   
+  Serial.println(F(" seconds."));   
+  digitalWrite(onboardLED, LOW);
+  sleep(sleepTime_s);
 }
+
+
+//void loop()
+//// send the first sample right away
+//// 5 next one minute away from each other
+//// get to normal pace
+//
+//{
+//  static int measurements_count = 0;
+//  static unsigned long time = millis();
+//  static unsigned long measurementTime = 0;
+//  static unsigned short iteration = 0;
+//
+//
+//
+//  
+//  
+//  if ((millisOffset() - time)/(1000*60)  >= WIFI_UODATE_INTERVAL_M || measurements_count >= measurements_size || iteration>0 && iteration<=1){
+//    Serial.print(F("Measurements. Time:"));
+//    Serial.println(millisOffset() - time);
+//    send_measurements(measurements_count, millisOffset()-time);
+//    measurements_count = 0;
+//    Serial.print(F("Cycle. Time:"));
+//    Serial.println(millisOffset() - time);
+//    time = millisOffset();
+//  } 
+//
+//  //blink(2);
+//  measurementTime = millisOffset();
+//  double Irms = emon1.calcIrms(1480);  // Calculate Irms only
+//  measurements[measurements_count] = Irms*230.0; 
+//  intervals[measurements_count] = (measurementTime-time)/1000.0; //time diff from cycle start
+//  measurements_count++;
+//    digitalWrite(onboardLED, LOW);
+//    sleep(MEASUREMENT_INTERVAL_S);
+//    digitalWrite(onboardLED, HIGH);
+//  if (iteration<=3){
+//      iteration++;
+//  }
+//
+//    Serial.print(F("Took "));
+//    Serial.print(measurements_count);
+//    Serial.print(F(" measurements out of "));
+//    Serial.println(measurements_size);
+//    Serial.print(F("Update will be sent in "));
+//    Serial.print(WIFI_UODATE_INTERVAL_M*60 - (millisOffset() - time)/(1000));
+//    Serial.println(F(" seconds"));
+//}
 
