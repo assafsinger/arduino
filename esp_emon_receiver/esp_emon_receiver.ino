@@ -121,7 +121,7 @@ void printStatus(){
 void sendData(){
     int wattage  = emon.phase1 + emon.phase2 + emon.phase3;
 
-    String str = "http://singer12.hopto.org:8080/logging.php";
+    String str = "http://singer.org.il:8080/logging.php";
     str += "?m_bt=" + String(emon.battery);
     str += "&d_bt=" + String(millis() - emon.battUpdate);
     str += "&m_wattage=" + String(wattage);
