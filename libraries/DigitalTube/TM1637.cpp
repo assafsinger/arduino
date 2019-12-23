@@ -124,6 +124,22 @@ void TM1637::display(uint8_t BitAddr,int8_t DispData)
   stop();           //
 }
 
+void TM1637::displayRaw(uint8_t BitAddr,int8_t DispData)
+{
+  int8_t SegData;
+  SegData = DispData;
+  start();          //start signal sent to TM1637 from MCU
+  writeByte(ADDR_FIXED);//
+  stop();           //
+  start();          //
+  writeByte(BitAddr|0xc0);//
+  writeByte(SegData);//
+  stop();            //
+  start();          //
+  writeByte(Cmd_DispCtrl);//
+  stop();           //
+}
+
 void TM1637::clearDisplay(void)
 {
   display(0x00,0x7f);
