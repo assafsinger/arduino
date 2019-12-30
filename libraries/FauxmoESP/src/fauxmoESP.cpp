@@ -80,7 +80,7 @@ void fauxmoESP::_handleUDP() {
 
         String request = (const char *) data;
         if (request.indexOf("M-SEARCH") >= 0) {
-            if(request.indexOf("upnp:rootdevice") > 0 || request.indexOf("device:basic:1") > 0) {
+            if(request.indexOf("upnp:rootdevice") > 0 || request.indexOf("device:basic:1") > 0 || request.indexOf("ssdp:discover") > 0){
                 _sendUDPResponse();
             }
         }
@@ -496,6 +496,12 @@ void fauxmoESP::enable(bool enable) {
     _enabled = enable;
 	if (_enabled) {
 		DEBUG_MSG_FAUXMO("[FAUXMO] Enabled\n");
+		int DEBUG_FAUXMO_VERBOSE_TCP_int = DEBUG_FAUXMO_VERBOSE_TCP?1:0;
+		int DEBUG_FAUXMO_VERBOSE_UDP_int = DEBUG_FAUXMO_VERBOSE_UDP?1:0;
+
+		DEBUG_MSG_FAUXMO("[FAUXMO] DEBUG_FAUXMO_VERBOSE_TCP:%d", DEBUG_FAUXMO_VERBOSE_TCP_int);
+		DEBUG_MSG_FAUXMO("[FAUXMO] DEBUG_FAUXMO_VERBOSE_UDP:%d", DEBUG_FAUXMO_VERBOSE_UDP_int);
+
 	} else {
 		DEBUG_MSG_FAUXMO("[FAUXMO] Disabled\n");
 	}
