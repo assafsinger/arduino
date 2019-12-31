@@ -1,8 +1,8 @@
 #include "debug.h"              // Serial debugger printing
-//#include "WifiConnection.h"     // Wifi connection 
 #include <ESP8266WiFiMulti.h>
-#include <ESP8266WiFi.h>
-#include <fauxmoESP.h>
+//#include <ESP8266WiFi.h>
+//#include <fauxmoESP.h>
+#include <Espalexa.h>
 #include "Shutters.h"
 #include "ElectraAc.h"
 
@@ -11,28 +11,28 @@
 ESP8266WiFiMulti wifi;
 
 
-//SET YOUR WIFI CREDS 
-//const char* myWifiSsid      = "finchouse_ext"; 
-//const char* myWifiPassword  = "6352938635293";
-
 //SET TO MATCH YOUR HARDWARE 
 #define SERIAL_BAUD_RATE    115200
 
 #define RADIO_PIN              D1
 #define IR_PIN                 D2
 
-fauxmoESP fauxmo;
+//fauxmoESP fauxmo;
 Shutters  shutters(RADIO_PIN);
 ElectraAc electraAc(IR_PIN);
+Espalexa espalexa;
+
 
 const char * SHUTTERS_MAME = "bedroom shutters";
-const char * AC_NAME_HEAT = "ac heat";
-const char * AC_NAME_COOL = "ac cool";
+const char * AC_NAME_HEAT = "heat";
+const char * AC_NAME_COOL = "cool";
 const char * AC_NAME = "ac";
 
 //const char* SUPPORTED_MODULES[] = {SHUTTERS_MAME, AC_MAME_HEAT, AC_MAME_COOL, AC_MAME}; //all modules
-//const char* SUPPORTED_MODULES[] = {AC_NAME_HEAT, AC_NAME_COOL, AC_NAME};
-const char* SUPPORTED_MODULES[] = {AC_NAME};
+
+void ac(uint8_t level);
+void acHeat(uint8_t level);
+void acCool(uint8_t level);
 
 
 // ************************************************************************************
@@ -46,11 +46,9 @@ void setup()
   //initialize wifi connection 
   WiFi.mode(WIFI_STA);
   wifi.addAP("finchouse_ext", "6352938635293");
-  //wifi.addAP("finchouse", "6352938635293");
+  wifi.addAP("finchouse", "6352938635293");
 
   Serial.println("Connecting Wifi...");
-  //wifi = new WifiConnection(myWifiSsid, myWifiPassword); 
-  //wifi->begin(); 
 
   //connect to wifi 
   while(wifi.run() != WL_CONNECTED) {
@@ -64,37 +62,44 @@ void setup()
     Serial.println(WiFi.localIP());
     Serial.println();
     Serial.println(F("adding support for the folowing modules:"));
-    for(int i=0; i<sizeof(SUPPORTED_MODULES)/sizeof(SUPPORTED_MODULES[0]);i++){
-      Serial.print(SUPPORTED_MODULES[i]);
-      Serial.print(F(","));
-      fauxmo.addDevice(SUPPORTED_MODULES[i]);
-    }
+    Serial.print(AC_NAME_HEAT);
+    Serial.print(F(","));
+    espalexa.addDevice(AC_NAME_HEAT, acHeat);
+    
+    Serial.print(AC_NAME_COOL);
+    Serial.print(F(","));
+    espalexa.addDevice(AC_NAME_COOL, acCool);
+    Serial.print(AC_NAME);
+    Serial.print(F(","));
+    espalexa.addDevice(AC_NAME, ac);
     Serial.println();
     
     
-    fauxmo.setPort(80); // required for gen3 devices
-    fauxmo.enable(true);
-    fauxmo.onSetState([](unsigned char device_id, const char * device_name, bool state, unsigned char value) {
-        Serial.printf("[MAIN] Device #%d (%s) state: %s value: %d\n", device_id, device_name, state ? "ON" : "OFF", value);
-        if (strcmp(SHUTTERS_MAME,device_name) == 0){
-          if (state){
-              Serial.print(F("Setting shutters "));
-              short openPercentage = value*100/255;
-              shutters.setShutterState(openPercentage);
-              Serial.printf(" %d\% UP\n",openPercentage);
-          } else {
-              shutters.closeShutter();
-              Serial.println(F("DOWN"));
-
-          }
-        } else if (strcmp(AC_NAME_HEAT,device_name) == 0){
-          electraAc.toggleHeat();
-        } else if (strcmp(AC_NAME_COOL,device_name) == 0){
-          electraAc.toggleCool();
-        } else if (strcmp(AC_NAME,device_name) == 0){
-          electraAc.toggleLastState();
-        }      
-    });
+    espalexa.begin();
+    electraAc.begin();
+    
+//    fauxmo.onSetState([](unsigned char device_id, const char * device_name, bool state, unsigned char value) {
+//        Serial.printf("[MAIN] Device #%d (%s) state: %s value: %d\n", device_id, device_name, state ? "ON" : "OFF", value);
+//        if (strcmp(SHUTTERS_MAME,device_name) == 0){
+//          if (state){
+//              Serial.print(F("Setting shutters "));
+//              short openPercentage = value*100/255;
+//              shutters.setShutterState(openPercentage);
+//              Serial.printf(" %d\% UP\n",openPercentage);
+//          } else {
+//              shutters.closeShutter();
+//              Serial.println(F("DOWN"));
+//
+//          }
+//        } else if (strcmp(AC_NAME_HEAT,device_name) == 0){
+//          electraAc.toggleHeat();
+//        } else if (strcmp(AC_NAME_COOL,device_name) == 0){
+//          electraAc.toggleCool();
+//        } else if (strcmp(AC_NAME,device_name) == 0){
+//          electraAc.toggleLastState();
+//        }      
+//    });
+//  }
   }
 }
 
@@ -103,16 +108,30 @@ void setup()
 // Runs constantly 
 //
 void loop() 
-{    
-  //let the wemulator listen for voice commands 
-  if (WiFi.status() != WL_CONNECTED)
-  {
-    //blinkLed(1, 100);
-    fauxmo.handle();
+{
+  if (wifi.run() != WL_CONNECTED) {
+    Serial.println("WiFi not connected!");
+    delay(1000);
+  }  
+    espalexa.loop();
     if (shutters.isWrap()){
       shutters.wrap();
     }
     
   }
 
+void ac(uint8_t level){
+    Serial.println("ac toggled");
+    electraAc.toggleLastState();
 }
+
+void acHeat(uint8_t level){
+  Serial.println("heat toggled");
+  electraAc.toggleHeat();
+}
+
+void acCool(uint8_t level){
+  Serial.println("cool toggled");
+  electraAc.toggleCool();
+}
+
