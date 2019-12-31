@@ -6,9 +6,9 @@
  
  
  
-#define dht_pin 2 // Pin sensor is connected to
-#define CLK 3//Pins for TM1637       
-#define DIO 4
+#define dht_pin 4 // Pin sensor is connected to
+#define CLK 2//Pins for TM1637       
+#define DIO 3
  
 TM1637 tm1637(CLK,DIO);
 dht DHT;
@@ -43,14 +43,15 @@ void loop(){
  int digitoneH = humidity / 10;
  int digittwoH = humidity % 10;
   
-    tm1637.display(0,16); 
+    tm1637.display(0,0x7f); 
     tm1637.display(1,digitoneT); 
     tm1637.display(2,digittwoT);
     tm1637.display(3,12);  // put a C at the end
     
     delay (3000);
-    
-    tm1637.display(1,23); 
+
+    tm1637.displayRaw(0,0x76); 
+    tm1637.display(1,0x7f); 
     tm1637.display(2,digitoneH); 
     tm1637.display(3,digittwoH);
  

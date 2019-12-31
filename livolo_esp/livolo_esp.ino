@@ -43,7 +43,7 @@ void onIndex() {
 void connectWiFi()
 {
   //Static IP address configuration
-  IPAddress staticIP(192, 168, 1, 234); //ESP8266 static ip
+  IPAddress staticIP(192, 168, 1, 233); //ESP8266 static ip
   IPAddress gateway(192, 168, 1, 1); //IP Address of your WiFi Router (Gateway)
   IPAddress subnet(255, 255, 255, 0); //Subnet mask
   IPAddress dns(8, 8, 8, 8); //DNS
