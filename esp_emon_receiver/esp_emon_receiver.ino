@@ -16,7 +16,7 @@
 //RH_ASK driver;
 RH_ASK driver(2000, 2, 4, 5); // ESP8266: do not use pin 11
 
-const char* ssid = "finchouse1";
+const char* ssid = "finchouse";
 const char* password = "6352938635293";
 
 struct emon {
