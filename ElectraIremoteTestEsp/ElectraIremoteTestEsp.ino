@@ -28,12 +28,12 @@ void loop()
            Serial.println("Sending OFF");
            break;
 
-        case '2':
+        case '2': //turning on and off
            irsend.sendRaw(rawDataLowHeat, 181, 38);
            Serial.println("Sending rawDataLowHeat");
            break;
 
-        case '3':
+        case '3': //keeping on
            irsend.sendRaw(rawDataHighHeat, 181, 38);
            Serial.println("Sending rawDataHighHeat");
            break;
