@@ -14,13 +14,10 @@
 
 SoftwareSerial swSer(14, 12, false, 128); //SoftwareSerial(rxPin, txPin, inverse_logic, buffer size);
 
-// user config: TODO
-#define  MOISTURE_THRESHOLD     55   // moisture alert threshold
 
 const char* wifi_ssid = "finchouse";             // SSID
 const char* wifi_password = "6352938635293";         // WIFI
 const char* apiKeyIn = "T15DMCYOWL9443CR";      // API KEY IN
-const unsigned int writeInterval = 30000; // write interval (in ms)
 const unsigned long READ_TIMEOUT_MS = 10000;
 
 // ASKSENSORS config.
@@ -30,14 +27,16 @@ ESP8266WiFiMulti WiFiMulti;
 
 int moisture_Pin= 0; // Soil Moisture Sensor input at Analog PIN A0
 int numOfSensors=2;
-int sensorPins[] = {D0,D1,D2,D3,D4};
 
-
+#define DONE_PINE D1 //D1 or D2 are the safe pins. See https://rabbithole.wwwdotorg.org/2017/03/28/esp8266-gpio.html
+unsigned long startTime = 0;
 
 
 
 void setup() {
-
+  pinMode(DONE_PINE, OUTPUT);
+  digitalWrite(DONE_PINE, LOW);
+  startTime = millis();
   Serial.begin(115200);
   swSer.begin(38400);
   Serial.println("*****************************************************");
@@ -54,30 +53,7 @@ void setup() {
   Serial.println("-> WiFi connected");
   Serial.println("-> IP address: ");
   Serial.println(WiFi.localIP());
-
-
-  for (int i=0 ; i<numOfSensors ; i++){
-      pinMode(sensorPins[i], OUTPUT); //initialize sensors
-  }
-
- 
 }
-
-int getMoistureReading(int sensorNumber){
-  int moisture_value= 0;
-  digitalWrite(sensorPins[sensorNumber], HIGH);
-  delay(1000);
-  Serial.print("MOISTURE LEVEL FOR SENSOR ");
-  Serial.print(sensorNumber);
-  Serial.print(":");
-  moisture_value= analogRead(moisture_Pin);
-  moisture_value= moisture_value/10;
-  Serial.println(moisture_value);
-  digitalWrite(sensorPins[sensorNumber], LOW);
-  delay(500);
-  return moisture_value;
-}
-
 
 int getReadingSerial(int sensorNumber){
   unsigned long startMs = millis();
@@ -114,6 +90,73 @@ int getReadingSerial(int sensorNumber){
    }
 }
 
+void signalDone(){
+  while (1) {
+    digitalWrite(DONE_PINE, HIGH);
+    delay(1);
+    digitalWrite(DONE_PINE, LOW);
+    delay(1);
+  }
+}
+
+float getBattryVoltage(){
+  int nVoltageRaw = analogRead(A0);
+  float fVoltage = (float)nVoltageRaw * 0.00460379464; //the factor was calaulated this way: 3.3*4.2/(1024*2.94). 2.94 was acheived as it's the maximum voltage measured due to the resistors I used of 46Kohm and 20kohm https://ezcontents.org/esp8266-battery-level-meter
+  return fVoltage;
+}
+
+int getBattryPercentage(){
+  float fVoltage = getBattryVoltage();
+  float fVoltageMatrix[24][2] = {
+    {4.2,  100},
+    {4.15, 99},
+    {4.11, 97},
+    {4.08, 95},
+    {4.02, 90},
+    {3.98, 85},
+    {3.95, 80},
+    {3.91, 75},
+    {3.87, 70},
+    {3.85, 65},
+    {3.84, 60},
+    {3.82, 55},
+    {3.80, 50},
+    {3.79, 45},
+    {3.77, 40},
+    {3.75, 35},
+    {3.73, 30},
+    {3.71, 25},
+    {3.69, 20},
+    {3.61, 15},
+    {3.54, 10},
+    {3.45, 5},
+    {3.27, 0},
+    {0, 0}
+  };
+
+  int i, perc;
+
+  perc = 100;
+
+  for(i=20; i>=0; i--) {
+    if(fVoltageMatrix[i][0] >= fVoltage) {
+      perc = fVoltageMatrix[i + 1][1];
+      break;
+    }
+  }
+  return perc;
+}
+
+float roundf(float var) 
+{ 
+    // 37.66666 * 100 =3766.66 
+    // 3766.66 + .5 =3767.16    for rounding off value 
+    // then type cast to int so value is 3767 
+    // then divided by 100 so the value converted into 37.67 
+    float value = (int)(var * 100 + .5); 
+    return (float)value / 100; 
+} 
+
 void loop() {
 
     
@@ -135,6 +178,9 @@ void loop() {
         Serial.print("Humidity: ");
         Serial.print(humidity);
         Serial.println("%");
+        float battrtyVoltage = getBattryVoltage();
+        Serial.printf("Battery level is %.2fV and %d%%\n", battrtyVoltage, getBattryPercentage());
+        
 
 
 
@@ -155,9 +201,13 @@ void loop() {
         url += "&field2=";
         url += humidity;
 
+        //third field is battery
+        url += "&field3=";
+        url += roundf(battrtyVoltage);
+
         for (int i=0 ; i<numOfSensors ; i++){
           url += "&field";
-          url += i+3; //offset for two first occupied fields
+          url += i+4; //offset for two first occupied fields
           url += '=';
           url += sensorData[i];
         }
@@ -188,10 +238,12 @@ void loop() {
         }
 
         http.end();
-
+        float runtimeSeconds = (millis() - startTime)/1000.0;
+        Serial.printf("program runtime: %.2f\n",runtimeSeconds);
         Serial.println("********** End ");
         Serial.println("*****************************************************");
     }
 
-    delay(writeInterval);
+    //send the done signal so tpl5110 can put us back to sleep
+    signalDone();
 }

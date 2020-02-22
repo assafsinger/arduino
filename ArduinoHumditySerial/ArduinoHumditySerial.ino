@@ -91,8 +91,11 @@ void loop()
         //calibrate
         //map(rawValue, dryValue, wetValue, friendlyDryValue, friendlyWetValue);
 
-        moisture_value = map(moisture_value, 1020, 270, 0, 100);
-  
+        moisture_value = map(moisture_value, 888, 371, 0, 100);
+        if (moisture_value<0)
+          moisture_value = 0;
+        if (moisture_value > 100)
+          moisture_value = 100;
         Serial.print("MOISTURE LEVEL FOR SENSOR ");
         Serial.print(pin);
         Serial.print(" :");
