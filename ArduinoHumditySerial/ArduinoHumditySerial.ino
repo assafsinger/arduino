@@ -27,12 +27,14 @@ s
  */
 #include <SoftwareSerial.h>
 #include <DHT.h>
+#include <Wire.h>
+#include "SparkFunBME280.h"
 
 #define  DHTTYPE DHT22   // DHT 22  (AM2302), AM2321
 int DHTPin = 9; 
 // Initialize DHT sensor.
 DHT dht(DHTPin, DHTTYPE);  
-
+BME280 mySensor;
 
 SoftwareSerial mySerial(2, 3); // RX, TX
 
@@ -47,8 +49,14 @@ void setup()
   mySerial.begin(38400);
 
   pinMode(DHTPin, INPUT);
-  dht.begin();              
+  dht.begin();      
 
+  Wire.begin();
+  myBME280Sensor.setI2CAddress(0x76); //The default for the SparkFun Environmental Combo board is 0x77 (jumper open).
+  if (myBME280Sensor.beginI2C() == false) //Begin communication over I2C
+  {
+    Serial.println("The BME280Sensor did not respond. Please check wiring.");
+  }
 }
 
 void loop()
@@ -76,6 +84,26 @@ void loop()
         }
         if (pin == 8){
           float temp = dht.readTemperature();
+          Serial.print("TEMPRATURE LEVEL FOR SENSOR ");
+          Serial.print(pin);
+          Serial.print(" :");
+          Serial.println(temp);
+          mySerial.println((int)(temp*10));
+          continue;
+        }
+        //bose BME280 mySensor pressure
+        if (pin == 4){
+          float pressure = myBME280Sensor.readFloatPressure() * 0.00029530
+          Serial.print("TEMPRATURE LEVEL FOR SENSOR ");
+          Serial.print(pin);
+          Serial.print(" :");
+          Serial.println(pressure);
+          mySerial.println((int)(pressure*100));
+          continue;
+        }
+        //bose BME280 mySensor temprature
+        if (pin == 5){
+          float temp = myBME280Sensor.readFloatPressure() * 0.00029530
           Serial.print("TEMPRATURE LEVEL FOR SENSOR ");
           Serial.print(pin);
           Serial.print(" :");

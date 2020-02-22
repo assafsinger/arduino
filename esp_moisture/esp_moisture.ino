@@ -30,7 +30,6 @@ ESP8266WiFiMulti WiFiMulti;
 
 int moisture_Pin= 0; // Soil Moisture Sensor input at Analog PIN A0
 int numOfSensors=2;
-int sensorPins[] = {D0,D1,D2,D3,D4};
 
 
 
@@ -62,22 +61,6 @@ void setup() {
 
  
 }
-
-int getMoistureReading(int sensorNumber){
-  int moisture_value= 0;
-  digitalWrite(sensorPins[sensorNumber], HIGH);
-  delay(1000);
-  Serial.print("MOISTURE LEVEL FOR SENSOR ");
-  Serial.print(sensorNumber);
-  Serial.print(":");
-  moisture_value= analogRead(moisture_Pin);
-  moisture_value= moisture_value/10;
-  Serial.println(moisture_value);
-  digitalWrite(sensorPins[sensorNumber], LOW);
-  delay(500);
-  return moisture_value;
-}
-
 
 int getReadingSerial(int sensorNumber){
   unsigned long startMs = millis();
@@ -127,14 +110,23 @@ void loop() {
         }
         delay (1000);
         float temp = getReadingSerial(8)/10.0;
+        float pressure = getReadingSerial(4)/100.0;
         delay (1000);
         float humidity = getReadingSerial(9)/10.0;
+        float tempV2 = getReadingSerial(5)/10.0;
+        
         Serial.print("Temperature: ");
         Serial.print(temp);
         Serial.println("°C");
         Serial.print("Humidity: ");
         Serial.print(humidity);
         Serial.println("%");
+        Serial.print("Pressure: ");
+        Serial.print(pressure);
+        Serial.println(" inHg");
+        Serial.print("TemperatureV2: ");
+        Serial.print(tempV2);
+        Serial.println("°C");
 
 
 
