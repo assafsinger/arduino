@@ -23,7 +23,7 @@ ElectraAc electraAc(IR_PIN);
 Espalexa espalexa;
 
 
-const char * SHUTTERS_MAME = "bedroom shutters";
+const char * SHUTTERS_MAME = "bedroom window";
 const char * AC_NAME_HEAT = "heat";
 const char * AC_NAME_COOL = "cool";
 const char * AC_NAME = "ac";
@@ -33,6 +33,7 @@ const char * AC_NAME = "ac";
 void ac(uint8_t level);
 void acHeat(uint8_t level);
 void acCool(uint8_t level);
+void shuttersCB(uint8_t level);
 
 
 // ************************************************************************************
@@ -62,16 +63,21 @@ void setup()
     Serial.println(WiFi.localIP());
     Serial.println();
     Serial.println(F("adding support for the folowing modules:"));
-    Serial.print(AC_NAME_HEAT);
+    Serial.print(SHUTTERS_MAME);
     Serial.print(F(","));
-    espalexa.addDevice(AC_NAME_HEAT, acHeat);
+    espalexa.addDevice(SHUTTERS_MAME, shuttersCB);
+
     
-    Serial.print(AC_NAME_COOL);
-    Serial.print(F(","));
-    espalexa.addDevice(AC_NAME_COOL, acCool);
-    Serial.print(AC_NAME);
-    Serial.print(F(","));
-    espalexa.addDevice(AC_NAME, ac);
+//    Serial.print(AC_NAME_HEAT);
+//    Serial.print(F(","));
+//    espalexa.addDevice(AC_NAME_HEAT, acHeat);
+//    
+//    Serial.print(AC_NAME_COOL);
+//    Serial.print(F(","));
+//    espalexa.addDevice(AC_NAME_COOL, acCool);
+//    Serial.print(AC_NAME);
+//    Serial.print(F(","));
+//    espalexa.addDevice(AC_NAME, ac);
     Serial.println();
     
     
@@ -119,6 +125,18 @@ void loop()
     }
     
   }
+
+void shuttersCB(uint8_t level){
+  if (level){
+    Serial.print(F("Setting shutters "));
+    short openPercentage = level*100/255;
+    shutters.setShutterState(openPercentage);
+    Serial.printf(" %d\% UP\n",openPercentage);
+  } else {
+    shutters.closeShutter();
+    Serial.println(F("shutters DOWN"));
+  }
+}
 
 void ac(uint8_t level){
     Serial.println("ac toggled");

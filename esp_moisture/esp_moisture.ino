@@ -14,13 +14,10 @@
 
 SoftwareSerial swSer(14, 12, false, 128); //SoftwareSerial(rxPin, txPin, inverse_logic, buffer size);
 
-// user config: TODO
-#define  MOISTURE_THRESHOLD     55   // moisture alert threshold
 
 const char* wifi_ssid = "finchouse";             // SSID
 const char* wifi_password = "6352938635293";         // WIFI
 const char* apiKeyIn = "T15DMCYOWL9443CR";      // API KEY IN
-const unsigned int writeInterval = 30000; // write interval (in ms)
 const unsigned long READ_TIMEOUT_MS = 10000;
 
 // ASKSENSORS config.
@@ -31,12 +28,21 @@ ESP8266WiFiMulti WiFiMulti;
 int moisture_Pin= 0; // Soil Moisture Sensor input at Analog PIN A0
 int numOfSensors=2;
 
+#define DONE_PINE D1 //D1 or D2 are the safe pins. See https://rabbithole.wwwdotorg.org/2017/03/28/esp8266-gpio.html
+unsigned long startTime = 0;
 
+#define DEBUG false
 
 
 
 void setup() {
-
+  pinMode(DONE_PINE, OUTPUT);
+  digitalWrite(DONE_PINE, LOW);
+  if (DEBUG){
+    pinMode(LED_BUILTIN, OUTPUT);
+    blinkLED(10,false);
+  }
+  startTime = millis();
   Serial.begin(115200);
   swSer.begin(38400);
   Serial.println("*****************************************************");
@@ -53,13 +59,6 @@ void setup() {
   Serial.println("-> WiFi connected");
   Serial.println("-> IP address: ");
   Serial.println(WiFi.localIP());
-
-
-  for (int i=0 ; i<numOfSensors ; i++){
-      pinMode(sensorPins[i], OUTPUT); //initialize sensors
-  }
-
- 
 }
 
 int getReadingSerial(int sensorNumber){
@@ -97,9 +96,89 @@ int getReadingSerial(int sensorNumber){
    }
 }
 
+void blinkLED (int times, bool longPulse){
+  int delayTime = longPulse?200:50;
+  for (int i=0;i<times;i++){
+     digitalWrite(LED_BUILTIN, LOW);   // Turn the LED on (Note that LOW is the voltage level
+     delay(delayTime);                      // Wait for a second
+     digitalWrite(LED_BUILTIN, HIGH);  // Turn the LED off by making the voltage HIGH
+     delay(delayTime);                      // Wait for two seconds (to demonstrate the active low LED)
+  }
+}
+
+void signalDone(){
+  while (1) {
+    digitalWrite(DONE_PINE, HIGH);
+    delay(1);
+    digitalWrite(DONE_PINE, LOW);
+    delay(1);
+  }
+}
+
+float getBattryVoltage(){
+  int nVoltageRaw = analogRead(A0);
+  float fVoltage = (float)nVoltageRaw * 0.00460379464; //the factor was calaulated this way: 3.3*4.2/(1024*2.94). 2.94 was acheived as it's the maximum voltage measured due to the resistors I used of 47Kohm and 20kohm https://ezcontents.org/esp8266-battery-level-meter
+  return fVoltage;
+}
+
+int getBattryPercentage(){
+  float fVoltage = getBattryVoltage();
+  float fVoltageMatrix[24][2] = {
+    {4.2,  100},
+    {4.15, 99},
+    {4.11, 97},
+    {4.08, 95},
+    {4.02, 90},
+    {3.98, 85},
+    {3.95, 80},
+    {3.91, 75},
+    {3.87, 70},
+    {3.85, 65},
+    {3.84, 60},
+    {3.82, 55},
+    {3.80, 50},
+    {3.79, 45},
+    {3.77, 40},
+    {3.75, 35},
+    {3.73, 30},
+    {3.71, 25},
+    {3.69, 20},
+    {3.61, 15},
+    {3.54, 10},
+    {3.45, 5},
+    {3.27, 0},
+    {0, 0}
+  };
+
+  int i, perc;
+
+  perc = 100;
+
+  for(i=20; i>=0; i--) {
+    if(fVoltageMatrix[i][0] >= fVoltage) {
+      perc = fVoltageMatrix[i + 1][1];
+      break;
+    }
+  }
+  return perc;
+}
+
+float roundf(float var) 
+{ 
+    // 37.66666 * 100 =3766.66 
+    // 3766.66 + .5 =3767.16    for rounding off value 
+    // then type cast to int so value is 3767 
+    // then divided by 100 so the value converted into 37.67 
+    float value = (int)(var * 100 + .5); 
+    return (float)value / 100; 
+} 
+
 void loop() {
 
-    
+    if (DEBUG){
+      pinMode(LED_BUILTIN, OUTPUT);
+      blinkLED(5,true);
+    }
     // wait for WiFi connection
   if (WiFi.status() == WL_CONNECTED){
     
@@ -127,6 +206,8 @@ void loop() {
         Serial.print("TemperatureV2: ");
         Serial.print(tempV2);
         Serial.println("°C");
+        float battrtyVoltage = getBattryVoltage();
+        Serial.printf("Battery level is %.2fV and %d%%\n", battrtyVoltage, getBattryPercentage());
 
 
 
@@ -147,12 +228,24 @@ void loop() {
         url += "&field2=";
         url += humidity;
 
+        //third field is battery
+        url += "&field3=";
+        url += roundf(battrtyVoltage);
+
         for (int i=0 ; i<numOfSensors ; i++){
           url += "&field";
-          url += i+3; //offset for two first occupied fields
+          url += i+4; //offset for two first occupied fields
           url += '=';
           url += sensorData[i];
         }
+
+        //pressure and second temp
+        url += "&field7=";
+        url += pressure;
+        url += "&field8=";
+        url += tempV2;
+
+        
         
         Serial.print("********** requesting URL: ");
         Serial.println(url);
@@ -162,28 +255,38 @@ void loop() {
 
         Serial.print("[HTTP] GET...\n");
         // start connection and send HTTP header
-        int httpCode = -1;
-        httpCode = http.GET();
-
-        // httpCode will be negative on error
-        if(httpCode > 0) {
-            // HTTP header has been send and Server response header has been handled
-            Serial.printf("[HTTP] GET... code: %d\n", httpCode);
-
-            // file found at server
-            if(httpCode == HTTP_CODE_OK) {
-                String payload = http.getString();
-                Serial.println(payload);
-            }
+        if (DEBUG){
+          Serial.println("Debug mode. skipping sending the data");
         } else {
-            Serial.printf("[HTTP] GET... failed, %d error: %s.\n", httpCode, http.errorToString(httpCode).c_str());
+          int httpCode = -1;
+          httpCode = http.GET();
+  
+          // httpCode will be negative on error
+          if(httpCode > 0) {
+              // HTTP header has been send and Server response header has been handled
+              Serial.printf("[HTTP] GET... code: %d\n", httpCode);
+  
+              // file found at server
+              if(httpCode == HTTP_CODE_OK) {
+                  String payload = http.getString();
+                  Serial.println(payload);
+              }
+          } else {
+              Serial.printf("[HTTP] GET... failed, %d error: %s.\n", httpCode, http.errorToString(httpCode).c_str());
+          }
         }
 
         http.end();
-
+        float runtimeSeconds = (millis() - startTime)/1000.0;
+        Serial.printf("program runtime: %.2f\n",runtimeSeconds);
         Serial.println("********** End ");
         Serial.println("*****************************************************");
     }
+    if (DEBUG){
+      pinMode(LED_BUILTIN, OUTPUT);
+      blinkLED(2,true);
+    }
 
-    delay(writeInterval);
+    //send the done signal so tpl5110 can put us back to sleep
+    signalDone();
 }
