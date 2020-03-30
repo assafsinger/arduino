@@ -30,11 +30,12 @@ s
 #include <Wire.h>
 #include "SparkFunBME280.h"
 
+#define DEBUG false
 #define  DHTTYPE DHT22   // DHT 22  (AM2302), AM2321
 int DHTPin = 9; 
 // Initialize DHT sensor.
 DHT dht(DHTPin, DHTTYPE);  
-BME280 mySensor;
+BME280 myBME280Sensor;
 
 SoftwareSerial mySerial(2, 3); // RX, TX
 
@@ -50,12 +51,17 @@ void setup()
 
   pinMode(DHTPin, INPUT);
   dht.begin();      
-
   Wire.begin();
   myBME280Sensor.setI2CAddress(0x76); //The default for the SparkFun Environmental Combo board is 0x77 (jumper open).
   if (myBME280Sensor.beginI2C() == false) //Begin communication over I2C
   {
     Serial.println("The BME280Sensor did not respond. Please check wiring.");
+  }
+  if (DEBUG){
+    for (int i=0;i<=9;i++){
+      getReading(i);
+      delay(500);
+    }
   }
 }
 
@@ -71,8 +77,14 @@ void loop()
           continue;
         }
         int pin = character - '0';
+        getReading(pin);
         
-        //DHT (8=temp, 9=humidity)
+    }
+}
+
+
+void getReading(int pin){
+  //DHT (8=temp, 9=humidity)
         if (pin == 9){
           float humidity = dht.readHumidity();
           Serial.print("HUMIDITY LEVEL FOR SENSOR ");
@@ -80,7 +92,7 @@ void loop()
           Serial.print(" :");
           Serial.println(humidity);
           mySerial.println((int)(humidity*10));
-          continue;
+          return;
         }
         if (pin == 8){
           float temp = dht.readTemperature();
@@ -89,27 +101,27 @@ void loop()
           Serial.print(" :");
           Serial.println(temp);
           mySerial.println((int)(temp*10));
-          continue;
+          return;
         }
         //bose BME280 mySensor pressure
         if (pin == 4){
-          float pressure = myBME280Sensor.readFloatPressure() * 0.00029530
-          Serial.print("TEMPRATURE LEVEL FOR SENSOR ");
+          float pressure = myBME280Sensor.readFloatPressure() * 0.0002953;
+          Serial.print("PRESSURE LEVEL FOR SENSOR ");
           Serial.print(pin);
           Serial.print(" :");
           Serial.println(pressure);
           mySerial.println((int)(pressure*100));
-          continue;
+          return;
         }
         //bose BME280 mySensor temprature
         if (pin == 5){
-          float temp = myBME280Sensor.readFloatPressure() * 0.00029530
+          float temp = myBME280Sensor.readTempC();
           Serial.print("TEMPRATURE LEVEL FOR SENSOR ");
           Serial.print(pin);
           Serial.print(" :");
           Serial.println(temp);
           mySerial.println((int)(temp*10));
-          continue;
+          return;
         }
 
         //else - analogue
@@ -129,7 +141,6 @@ void loop()
         Serial.print(" :");
         Serial.println(moisture_value);
         mySerial.println(moisture_value);
-    }
 }
 
   
