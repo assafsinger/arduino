@@ -12,12 +12,20 @@
 #include <ESP8266HTTPClient.h>
 
 #define MIN(a,b) (((a)<(b))?(a):(b))
+#define MAX(a,b) (((a)>(b))?(a):(b))
+
+#define DEBUG false
 
 //RH_ASK driver;
 RH_ASK driver(2000, 2, 4, 5); // ESP8266: do not use pin 11
 
 const char* ssid = "finchouse";
 const char* password = "6352938635293";
+
+String host = "http://api.thingspeak.com";         // thingspeak API host name
+const char* apiKeyIn = "TI828H1DL3NMQJRA";      // API KEY IN
+
+
 
 struct emon {
    char  id[5];
@@ -30,6 +38,7 @@ struct emon {
    unsigned long phase3Update;
    unsigned long battUpdate;
    unsigned long oldestUpdate;
+   unsigned long newestUpdate;
 } emon;  
 
 void setup()
@@ -38,7 +47,6 @@ void setup()
     if (!driver.init())
          Serial.println("init failed");
      WiFi.begin(ssid, password);
- 
     while (WiFi.status() != WL_CONNECTED) {       
       delay(1000);
       Serial.print("Connecting..");
@@ -74,21 +82,26 @@ void tokenize(char* input){
       emon.phase1 = atof(data);
       emon.phase1Update = millis();
       emon.oldestUpdate = MIN(MIN(emon.phase1Update, emon.phase2Update),MIN(emon.phase3Update, emon.battUpdate));
+      emon.newestUpdate = MAX(MAX(emon.phase1Update, emon.phase2Update),MAX(emon.phase3Update, emon.battUpdate));
     }
     if (strcmp(type, "PH2") == 0){
       emon.phase2 = atof(data);
       emon.phase2Update = millis();
       emon.oldestUpdate = MIN(MIN(emon.phase1Update, emon.phase2Update),MIN(emon.phase3Update, emon.battUpdate));
+      emon.newestUpdate = MAX(MAX(emon.phase1Update, emon.phase2Update),MAX(emon.phase3Update, emon.battUpdate));
+
     }    
     if (strcmp(type, "PH3") == 0){
       emon.phase3 = atof(data);
       emon.phase3Update = millis();
       emon.oldestUpdate = MIN(MIN(emon.phase1Update, emon.phase2Update),MIN(emon.phase3Update, emon.battUpdate));
+      emon.newestUpdate = MAX(MAX(emon.phase1Update, emon.phase2Update),MAX(emon.phase3Update, emon.battUpdate));
     }
     if (strcmp(type, "BAT") == 0){
       emon.battery = atof(data);
       emon.battUpdate = millis();
       emon.oldestUpdate = MIN(MIN(emon.phase1Update, emon.phase2Update),MIN(emon.phase3Update, emon.battUpdate));
+      emon.newestUpdate = MAX(MAX(emon.phase1Update, emon.phase2Update),MAX(emon.phase3Update, emon.battUpdate));
     }        
 }
 
@@ -116,6 +129,69 @@ void printStatus(){
   Serial.println((millis() - emon.oldestUpdate)/1000);
   Serial.println("---------------------");
   
+}
+
+void sendDataThingspeak(){
+  HTTPClient http;
+  Serial.print("[HTTP] begin...\n");
+          
+  // Create a URL for the request
+  String url = "";
+  url += host;
+  url += "/update?api_key=";
+  url += apiKeyIn;
+
+  url += "&field1=";
+  url += emon.battery;
+  
+  int wattage  = emon.phase1 + emon.phase2 + emon.phase3;
+  url += "&field2=";
+  url += wattage;
+  
+  url += "&field3=";
+  url += emon.phase1;
+
+  url += "&field4=";
+  url += emon.phase2;
+
+  url += "&field5=";
+  url += emon.phase3;
+
+  url += "&field6=";
+  url += (millis() - emon.newestUpdate)/1000;
+
+  url += "&field7=";
+  url += (millis() - emon.oldestUpdate)/1000;
+    
+  Serial.print("********** requesting URL: ");
+  Serial.println(url);
+  http.begin(url); //HTTP
+  
+
+  Serial.print("[HTTP] GET...\n");
+  // start connection and send HTTP header
+  if (DEBUG){
+    Serial.println("Debug mode. skipping sending the data");
+  } else {
+    int httpCode = -1;
+    httpCode = http.GET();
+    Serial.println("> power levels and state were sent to thingspeak");
+    // httpCode will be negative on error
+    if(httpCode > 0) {
+        // HTTP header has been send and Server response header has been handled
+        Serial.printf("[HTTP] GET... code: %d\n", httpCode);
+
+        // file found at server
+        if(httpCode == HTTP_CODE_OK) {
+            String payload = http.getString();
+            Serial.println(payload);
+        }
+    } else {
+        Serial.printf("[HTTP] GET... failed, %d error: %s.\n", httpCode, http.errorToString(httpCode).c_str());
+    }
+  }
+
+  http.end();
 }
 
 void sendData(){
@@ -180,7 +256,7 @@ void loop(){
 
     if (millis() - lastSent >=1000*60){
       Serial.println("sending data");
-      sendData();
+      sendDataThingspeak();
       lastSent = millis();
     }
 }
