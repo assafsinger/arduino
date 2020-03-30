@@ -31,11 +31,17 @@ int numOfSensors=2;
 #define DONE_PINE D1 //D1 or D2 are the safe pins. See https://rabbithole.wwwdotorg.org/2017/03/28/esp8266-gpio.html
 unsigned long startTime = 0;
 
+#define DEBUG false
+
 
 
 void setup() {
   pinMode(DONE_PINE, OUTPUT);
   digitalWrite(DONE_PINE, LOW);
+  if (DEBUG){
+    pinMode(LED_BUILTIN, OUTPUT);
+    blinkLED(10,false);
+  }
   startTime = millis();
   Serial.begin(115200);
   swSer.begin(38400);
@@ -90,6 +96,16 @@ int getReadingSerial(int sensorNumber){
    }
 }
 
+void blinkLED (int times, bool longPulse){
+  int delayTime = longPulse?200:50;
+  for (int i=0;i<times;i++){
+     digitalWrite(LED_BUILTIN, LOW);   // Turn the LED on (Note that LOW is the voltage level
+     delay(delayTime);                      // Wait for a second
+     digitalWrite(LED_BUILTIN, HIGH);  // Turn the LED off by making the voltage HIGH
+     delay(delayTime);                      // Wait for two seconds (to demonstrate the active low LED)
+  }
+}
+
 void signalDone(){
   while (1) {
     digitalWrite(DONE_PINE, HIGH);
@@ -101,7 +117,7 @@ void signalDone(){
 
 float getBattryVoltage(){
   int nVoltageRaw = analogRead(A0);
-  float fVoltage = (float)nVoltageRaw * 0.00460379464; //the factor was calaulated this way: 3.3*4.2/(1024*2.94). 2.94 was acheived as it's the maximum voltage measured due to the resistors I used of 46Kohm and 20kohm https://ezcontents.org/esp8266-battery-level-meter
+  float fVoltage = (float)nVoltageRaw * 0.00460379464; //the factor was calaulated this way: 3.3*4.2/(1024*2.94). 2.94 was acheived as it's the maximum voltage measured due to the resistors I used of 47Kohm and 20kohm https://ezcontents.org/esp8266-battery-level-meter
   return fVoltage;
 }
 
@@ -159,7 +175,10 @@ float roundf(float var)
 
 void loop() {
 
-    
+    if (DEBUG){
+      pinMode(LED_BUILTIN, OUTPUT);
+      blinkLED(5,true);
+    }
     // wait for WiFi connection
   if (WiFi.status() == WL_CONNECTED){
     
@@ -170,17 +189,25 @@ void loop() {
         }
         delay (1000);
         float temp = getReadingSerial(8)/10.0;
+        float pressure = getReadingSerial(4)/100.0;
         delay (1000);
         float humidity = getReadingSerial(9)/10.0;
+        float tempV2 = getReadingSerial(5)/10.0;
+        
         Serial.print("Temperature: ");
         Serial.print(temp);
         Serial.println("°C");
         Serial.print("Humidity: ");
         Serial.print(humidity);
         Serial.println("%");
+        Serial.print("Pressure: ");
+        Serial.print(pressure);
+        Serial.println(" inHg");
+        Serial.print("TemperatureV2: ");
+        Serial.print(tempV2);
+        Serial.println("°C");
         float battrtyVoltage = getBattryVoltage();
         Serial.printf("Battery level is %.2fV and %d%%\n", battrtyVoltage, getBattryPercentage());
-        
 
 
 
@@ -211,6 +238,14 @@ void loop() {
           url += '=';
           url += sensorData[i];
         }
+
+        //pressure and second temp
+        url += "&field7=";
+        url += pressure;
+        url += "&field8=";
+        url += tempV2;
+
+        
         
         Serial.print("********** requesting URL: ");
         Serial.println(url);
@@ -220,21 +255,25 @@ void loop() {
 
         Serial.print("[HTTP] GET...\n");
         // start connection and send HTTP header
-        int httpCode = -1;
-        httpCode = http.GET();
-
-        // httpCode will be negative on error
-        if(httpCode > 0) {
-            // HTTP header has been send and Server response header has been handled
-            Serial.printf("[HTTP] GET... code: %d\n", httpCode);
-
-            // file found at server
-            if(httpCode == HTTP_CODE_OK) {
-                String payload = http.getString();
-                Serial.println(payload);
-            }
+        if (DEBUG){
+          Serial.println("Debug mode. skipping sending the data");
         } else {
-            Serial.printf("[HTTP] GET... failed, %d error: %s.\n", httpCode, http.errorToString(httpCode).c_str());
+          int httpCode = -1;
+          httpCode = http.GET();
+  
+          // httpCode will be negative on error
+          if(httpCode > 0) {
+              // HTTP header has been send and Server response header has been handled
+              Serial.printf("[HTTP] GET... code: %d\n", httpCode);
+  
+              // file found at server
+              if(httpCode == HTTP_CODE_OK) {
+                  String payload = http.getString();
+                  Serial.println(payload);
+              }
+          } else {
+              Serial.printf("[HTTP] GET... failed, %d error: %s.\n", httpCode, http.errorToString(httpCode).c_str());
+          }
         }
 
         http.end();
@@ -242,6 +281,10 @@ void loop() {
         Serial.printf("program runtime: %.2f\n",runtimeSeconds);
         Serial.println("********** End ");
         Serial.println("*****************************************************");
+    }
+    if (DEBUG){
+      pinMode(LED_BUILTIN, OUTPUT);
+      blinkLED(2,true);
     }
 
     //send the done signal so tpl5110 can put us back to sleep
