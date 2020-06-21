@@ -92,15 +92,16 @@ void loop() {
 }
 
 void process(String response) {
-  StaticJsonBuffer<200> jsonBuffer;
-  JsonObject& root = jsonBuffer.parseObject(response);
-  if (root.success()) {
-    String status = root["status"];
+  DynamicJsonDocument doc(1024);
+  DeserializationError error = deserializeJson(doc, response);
+
+  if (!error) {
+    String status = doc["status"];
     if (status == "success") {
       //_pollingRate = root["data"]["nextCheckIn"];
       if (_pollingRate > MAX_SLEEP_TIME) _pollingRate = MAX_SLEEP_TIME;
-      if (root["data"]["openShutter"]) openShutter();
-      if (root["data"]["closeShutter"]) closeShutter();
+      if (doc["data"]["openShutter"]) openShutter();
+      if (doc["data"]["closeShutter"]) closeShutter();
     } else {
 #if DEBUG
       Serial.print(F("Unsuccessful response: ")); Serial.println(status);

@@ -82,6 +82,21 @@ void loop()
     }
 }
 
+float getBattryVoltage(){
+  //get rid of the noise
+  for (int i=0;i<20;i++){
+      analogRead(3);
+  }
+  //avarage 10 samples
+  int sum = 0;
+  for (int i=0;i<10;i++){
+    sum += analogRead(3);
+  }
+  float nVoltageRaw = (float)sum/10;
+  
+  float fVoltage = nVoltageRaw * 0.00460379464; //the factor was calaulated this way: 3.3*4.2/(1024*2.94). 2.94 was acheived as it's the maximum voltage measured due to the resistors I used of 47Kohm and 20kohm https://ezcontents.org/esp8266-battery-level-meter
+  return fVoltage;
+}
 
 void getReading(int pin){
   //DHT (8=temp, 9=humidity)
@@ -123,6 +138,13 @@ void getReading(int pin){
           mySerial.println((int)(temp*10));
           return;
         }
+        if (pin == 3){
+          float voltage = getBattryVoltage();
+          Serial.print("BATTERY VOLTAGE ");
+          Serial.print(" :");
+          Serial.println(voltage);
+          mySerial.println((int)(voltage*100));
+        }
 
         //else - analogue
         int moisture_value=0;
@@ -145,5 +167,3 @@ void getReading(int pin){
 
   
  
-
-

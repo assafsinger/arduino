@@ -2,9 +2,12 @@
 #include <ESP8266WiFiMulti.h>
 //#include <ESP8266WiFi.h>
 //#include <fauxmoESP.h>
+
 #include <Espalexa.h>
 #include "Shutters.h"
 #include "ElectraAc.h"
+#include "TimeOfDay.h"
+
 
 
 //WifiConnection* wifi;           // wifi connection
@@ -21,9 +24,14 @@ ESP8266WiFiMulti wifi;
 Shutters  shutters(RADIO_PIN);
 ElectraAc electraAc(IR_PIN);
 Espalexa espalexa;
+TimeOfDay timeOfDay;
+
+long lastSmartWindowCheck = 0;
+#define TIME_OF_DAY_CHECK_INTERVAL 300000 //5 minutes
 
 
 const char * SHUTTERS_MAME = "bedroom window";
+const char * SHUTTERS_SMART_WINDOW = "bedroom smart window";
 const char * AC_NAME_HEAT = "heat";
 const char * AC_NAME_COOL = "cool";
 const char * AC_NAME = "ac";
@@ -34,6 +42,7 @@ void ac(uint8_t level);
 void acHeat(uint8_t level);
 void acCool(uint8_t level);
 void shuttersCB(uint8_t level);
+void smartWindow(uint8_t level);
 
 
 // ************************************************************************************
@@ -66,7 +75,9 @@ void setup()
     Serial.print(SHUTTERS_MAME);
     Serial.print(F(","));
     espalexa.addDevice(SHUTTERS_MAME, shuttersCB);
-
+    Serial.print(SHUTTERS_SMART_WINDOW);
+    Serial.print(F(","));
+    espalexa.addDevice(SHUTTERS_SMART_WINDOW, smartWindow);
     
 //    Serial.print(AC_NAME_HEAT);
 //    Serial.print(F(","));
@@ -83,6 +94,8 @@ void setup()
     
     espalexa.begin();
     electraAc.begin();
+    timeOfDay.enable();
+
     
 //    fauxmo.onSetState([](unsigned char device_id, const char * device_name, bool state, unsigned char value) {
 //        Serial.printf("[MAIN] Device #%d (%s) state: %s value: %d\n", device_id, device_name, state ? "ON" : "OFF", value);
@@ -113,6 +126,7 @@ void setup()
 // ************************************************************************************
 // Runs constantly 
 //
+
 void loop() 
 {
   if (wifi.run() != WL_CONNECTED) {
@@ -123,8 +137,51 @@ void loop()
     if (shutters.isWrap()){
       shutters.wrap();
     }
+
+    smartWindowCheck();
     
   }
+
+void smartWindow(uint8_t level){
+  if (level){
+      timeOfDay.enable();
+  } else {
+    timeOfDay.disable();
+  }
+}
+
+/*run on every loop.
+ * only check once in 5 minutes
+ * if we are currently 5 minutes away from an event, trigger the event response.
+ * 
+ */
+
+void smartWindowCheck(){
+      if (!timeOfDay.isEnabled())
+        return;
+      unsigned long timeSinceLastCheck = millis()-lastSmartWindowCheck;
+      
+      //only check once in 5 minutes. if not enough time passed since last run -> do nothing.
+      if (timeSinceLastCheck<TIME_OF_DAY_CHECK_INTERVAL)
+        return;
+
+      Serial.println("within check window. running checks");
+      long timeToSunset = timeOfDay.timeToFromSunset();
+      yield();
+      long timeToSunrise = timeOfDay.timeToFromSunrise();
+      yield();
+      Serial.printf("time to sunset: %d, time to sunrise: %d\n", timeToSunset, timeToSunrise);
+      //if we are currently 5 minutes away from an event, trigger the event response.
+      if (abs(timeToSunrise*1000)<TIME_OF_DAY_CHECK_INTERVAL){
+        shutters.closeShutter();
+      }
+      if (abs(timeToSunset*1000)<TIME_OF_DAY_CHECK_INTERVAL){
+        //do nothing for now.
+      }
+
+      lastSmartWindowCheck = millis();
+}
+
 
 void shuttersCB(uint8_t level){
   if (level){
@@ -152,4 +209,3 @@ void acCool(uint8_t level){
   Serial.println("cool toggled");
   electraAc.toggleCool();
 }
-

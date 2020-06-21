@@ -1,7 +1,9 @@
 #include "EmonLib.h"                   // Include Emon Library
 #include <RH_ASK.h>
 #include <SPI.h> // Not actually used but needed to compile
-#include "LowPower.h"
+//#include "LowPower.h"
+
+#define DONE_PINE 2
 
 EnergyMonitor emon_p1, emon_p2, emon_p3;    
 int onboardLED = 13;
@@ -16,6 +18,8 @@ double supplyVoltage;
 
 void setup() {
     analogReference(DEFAULT);
+    pinMode(DONE_PINE, OUTPUT);
+    digitalWrite(DONE_PINE, LOW);
     Serial.begin(9600);
     if (!driver.init())
         Serial.println("init failed");
@@ -102,11 +106,21 @@ double getBatteryLevel(){
     return batteryV;
 }
 
+void signalDone(){
+  while (1) {
+    digitalWrite(DONE_PINE, HIGH);
+    delay(1);
+    digitalWrite(DONE_PINE, LOW);
+    delay(1);
+  }
+}
 
 void loop() {
 
     sendSensorData(deviceId);
     sendBatteryData(deviceId);
     //delay(2000); 
-    LowPower.powerDown(SLEEP_4S, ADC_OFF, BOD_OFF);
+    //LowPower.powerDown(SLEEP_4S, ADC_OFF, BOD_OFF);
+        //send the done signal so tpl5110 can put us back to sleep
+    signalDone();
 }
