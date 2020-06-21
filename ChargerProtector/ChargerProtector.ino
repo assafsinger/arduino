@@ -13,11 +13,12 @@ unsigned int eepromaddr;
 boolean Flag_ReadTime;
 long timerTimeSeconds = 0; //1:05h
 long timeLeftSeconds = 0;
-const int  buttonPin = 7;    // the pin that the pushbutton is attached to
+const int  buttonPin = A2;    // the pin that the pushbutton is attached to
 const int  mosfetPin = 8;    // the pin that the pushbutton is attached to
 int buttonState = 0;         // current state of the button
 int lastButtonState = 0;     // previous state of the button
 bool mosfetStateHigh = false;
+unsigned long lastBottonClick = 0;
 
 #define CLK 2//pins definitions for TM1637 and can be changed to other ports        
 #define DIO 3
@@ -47,9 +48,13 @@ void loop(){
     Serial.println("button");
     // if the state has changed, increment the counter
     if (buttonState == HIGH) {
-      // if the current state is HIGH then the button went from off to on:
-      timerTimeSeconds+=3600; //increase one hour
-      timeLeftSeconds+=3600;
+      //filter noise if multiple clicks in under 500ms
+      if (millis() - lastBottonClick>500){ 
+        // if the current state is HIGH then the button went from off to on:
+        timerTimeSeconds+=3600; //increase one hour
+        timeLeftSeconds+=3600;
+        lastBottonClick = millis();
+      }
     }
   }
   lastButtonState = buttonState;
@@ -84,13 +89,17 @@ void TimingISR()
 
 void TimeUpdate(void)
 {
+  Serial.println("1");
   if(ClockPoint)
     tm1637.point(POINT_ON);//POINT_ON = 1,POINT_OFF = 0;
   else tm1637.point(POINT_OFF); 
+  Serial.println("2");
 
   int hours = timeLeftSeconds/3600;
   int mins = timeLeftSeconds%3600/60;
   int seconds = timeLeftSeconds%60;
+    Serial.println("3");
+
   if (hours>0){
     TimeDisp[2] = mins / 10;
     TimeDisp[3] = mins % 10;

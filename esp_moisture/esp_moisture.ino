@@ -25,8 +25,7 @@ String host = "http://api.thingspeak.com";         // thingspeak API host name
 
 ESP8266WiFiMulti WiFiMulti;
 
-int moisture_Pin= 0; // Soil Moisture Sensor input at Analog PIN A0
-int numOfSensors=2;
+int numOfSensors=3;
 
 #define DONE_PINE D1 //D1 or D2 are the safe pins. See https://rabbithole.wwwdotorg.org/2017/03/28/esp8266-gpio.html
 unsigned long startTime = 0;
@@ -50,6 +49,7 @@ void setup() {
   Serial.println("Wait for WiFi... ");
   Serial.print("********** connecting to WIFI : ");
   Serial.println(wifi_ssid);
+  delay(500);
   WiFi.begin(wifi_ssid, wifi_password);
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
@@ -106,6 +106,21 @@ void blinkLED (int times, bool longPulse){
   }
 }
 
+float getBatteryLevel(){
+  // read the analog in value
+  long sensorValue = 0;
+  for (int i=0;i<30;i++){
+    sensorValue += analogRead(A0);
+    delay(5);
+  }
+
+  return 4.2*(sensorValue/30)/1023;
+  //return 4.2*sensorValue/1023
+  // map it to the range of the PWM out
+  //int outputValue = map(sensorValue, 0, 1023, 0, 420);
+  //return outputValue/100.0;
+}
+
 void signalDone(){
   while (1) {
     digitalWrite(DONE_PINE, HIGH);
@@ -115,14 +130,9 @@ void signalDone(){
   }
 }
 
-float getBattryVoltage(){
-  int nVoltageRaw = analogRead(A0);
-  float fVoltage = (float)nVoltageRaw * 0.00460379464; //the factor was calaulated this way: 3.3*4.2/(1024*2.94). 2.94 was acheived as it's the maximum voltage measured due to the resistors I used of 47Kohm and 20kohm https://ezcontents.org/esp8266-battery-level-meter
-  return fVoltage;
-}
 
-int getBattryPercentage(){
-  float fVoltage = getBattryVoltage();
+
+int getBattryPercentage(float fVoltage){
   float fVoltageMatrix[24][2] = {
     {4.2,  100},
     {4.15, 99},
@@ -173,6 +183,17 @@ float roundf(float var)
     return (float)value / 100; 
 } 
 
+int getReadingAndValidate(int port, int retryCount=5){
+  int reading = 0;
+  for (int i=0;i<retryCount;i++){
+    reading = getReadingSerial(port);
+    if (reading){
+      return reading;
+    }
+    delay(50); 
+  }
+}
+
 void loop() {
 
     if (DEBUG){
@@ -181,18 +202,20 @@ void loop() {
     }
     // wait for WiFi connection
   if (WiFi.status() == WL_CONNECTED){
-    
         //get sensor data
         int sensorData[numOfSensors];
         for (int i=0 ; i<numOfSensors ; i++){
-          sensorData[i] = getReadingSerial(i);
+          sensorData[i] = getReadingAndValidate(i);
         }
         delay (1000);
-        float temp = getReadingSerial(8)/10.0;
-        float pressure = getReadingSerial(4)/100.0;
+        float temp = getReadingAndValidate(8)/10.0;
+        float pressure = getReadingAndValidate(4)/100.0;
         delay (1000);
-        float humidity = getReadingSerial(9)/10.0;
-        float tempV2 = getReadingSerial(5)/10.0;
+        float humidity = getReadingAndValidate(9)/10.0;
+        float tempV2 = getReadingAndValidate(5)/10.0;
+       // float battrtyVoltage = getReadingAndValidate(3)/100.0;
+       float battrtyVoltage = getBatteryLevel();
+
         
         Serial.print("Temperature: ");
         Serial.print(temp);
@@ -206,8 +229,7 @@ void loop() {
         Serial.print("TemperatureV2: ");
         Serial.print(tempV2);
         Serial.println("°C");
-        float battrtyVoltage = getBattryVoltage();
-        Serial.printf("Battery level is %.2fV and %d%%\n", battrtyVoltage, getBattryPercentage());
+        Serial.printf("Battery level is %.2fV and %d%%\n", battrtyVoltage, getBattryPercentage(battrtyVoltage));
 
 
 

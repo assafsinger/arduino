@@ -4,7 +4,6 @@
 #include <Arduino.h> 
 #include <livolo.h>
 
-
 #define SWITCH_FULL_OPERATION_TIME_MS 15500
 #define sgn(x) ((x) < 0 ? -1 : ((x) > 0 ? 1 : 0))
 
@@ -17,6 +16,7 @@ public:
 	void closeShutter(void); 
 	void resetSwitchState(void); 
 	void setShutterState(short state); 
+  void setShutterStatePartial(short state); 
 	void wrap();
 	bool isWrap();
 	
@@ -51,7 +51,7 @@ void Shutters::resetSwitchState(void){
 	delay(1000);
 }
 
-void Shutters::setShutterState(short state){
+void Shutters::setShutterStatePartial(short state){
 	 int desiredPercentage = state;
 	 int operation = openPercentage - desiredPercentage;
 	 if (abs(operation)<5) //if the change is too small do nothing.
@@ -66,6 +66,16 @@ void Shutters::setShutterState(short state){
 	 	livolo.sendButton(ID, SHUTTER_UP);
 	 }
 	 openPercentage = desiredPercentage;
+}
+
+void Shutters::setShutterState(short state){
+   operationTime = SWITCH_FULL_OPERATION_TIME_MS;
+  if (state){ 
+    livolo.sendButton(ID, SHUTTER_UP);
+   } else { 
+    livolo.sendButton(ID, SHUTTER_DOWN);
+   }
+   openPercentage = state;
 }
 
 bool Shutters::isWrap(){
@@ -98,4 +108,3 @@ bool Shutters::politeTrack(unsigned long waitTimeMS){
 }
 
 #endif 
-
