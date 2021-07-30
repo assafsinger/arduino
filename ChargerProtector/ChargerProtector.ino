@@ -4,7 +4,7 @@
 #define ON 1
 #define OFF 0
 
-int8_t TimeDisp[] = {0x00,0x00,0x00,0x00};
+int8_t DISPLAY_VALUE[] = {0x00,0x00,0x00,0x00};
 unsigned char ClockPoint = 1;
 unsigned char Update;
 unsigned char microsecond_10 = 0;
@@ -20,6 +20,17 @@ int lastButtonState = 0;     // previous state of the button
 bool mosfetStateHigh = false;
 unsigned long lastBottonClick = 0;
 
+//current sensor
+const int currentSensingPin = A4;
+int sensitivity = 185;
+int offsetVoltage = 2500;
+int currentSensingAttampts = 1000;
+int currentUpdateFrequency = 10*1000; //10 seconds
+long nextCurrentPrint = 0;
+double referenceCurrent = 0;
+
+
+
 #define CLK 2//pins definitions for TM1637 and can be changed to other ports        
 #define DIO 3
 TM1637 tm1637(CLK,DIO);
@@ -30,6 +41,8 @@ void setup()
   Serial.println("Start");
   pinMode(buttonPin, INPUT);
   pinMode(mosfetPin, OUTPUT);
+  pinMode(currentSensingPin, INPUT);
+
   digitalWrite(mosfetPin, LOW); 
 
   tm1637.set(BRIGHT_TYPICAL);//BRIGHT_TYPICAL = 2,BRIGHT_DARKEST = 0,BRIGHTEST = 7;
@@ -37,10 +50,65 @@ void setup()
   Timer1.initialize(10000);//timing for 10ms
   Timer1.attachInterrupt(TimingISR);//declare the interrupt serve routine:TimingISR  
   timeLeftSeconds = timerTimeSeconds;
-
+  nextCurrentPrint = millis();
   Update = ON;
 
 }
+
+void setReferenceCurrent(){
+  referenceCurrent = getOutputCurrent();
+  Serial.print("Reference current set to:");
+  Serial.println(referenceCurrent);
+}
+
+double getOutputCurrent(){
+  long value = 0;
+  for (int i=0;i<currentSensingAttampts;i++){
+    value+=analogRead(currentSensingPin);
+  }
+  double adcValue = (double)value/currentSensingAttampts;
+
+  //((AvgAcs * (5.0 / 1024.0)) is converitng the read voltage in 0-5 volts
+  //2.5 is offset(I assumed that arduino is working on 5v so the viout at no current comes
+  //out to be 2.5 which is out offset. If your arduino is working on different voltage than 
+  //you must change the offset according to the input voltage)
+  //0.185v(185mV) is rise in output voltage when 1A current flows at input
+  double AcsValueF = (2.5 - (adcValue * (5.0 / 1024.0)) )/0.185;
+  int signedReference = AcsValueF>0?-1:1;
+  AcsValueF = AcsValueF + signedReference*abs(referenceCurrent);
+  
+  Serial.print("ADC Value =     ");
+  Serial.print(adcValue);
+
+
+  Serial.print("\t Current = ");
+  Serial.println(AcsValueF,3);
+  return AcsValueF;
+}
+
+boolean currentUpdate(){
+
+  long now_t = millis();
+    if (nextCurrentPrint - now_t > 0){
+       Serial.print("outputCurrent:");
+       double outputCurrent = getOutputCurrent();
+       Serial.println(outputCurrent,3);
+       int displayValue = (int)(abs(outputCurrent)*1000) % 1000;
+       DISPLAY_VALUE[0] = displayValue/1000;
+       DISPLAY_VALUE[1] = displayValue / 100 % 100;
+       DISPLAY_VALUE[2] = displayValue / 10 % 10;
+       DISPLAY_VALUE[3] = displayValue % 10;
+       tm1637.point(POINT_OFF); 
+       Update = OFF;
+       return true;
+    } else{ 
+      if (abs(nextCurrentPrint-now_t)>currentUpdateFrequency){
+        nextCurrentPrint = now_t+currentUpdateFrequency*2;
+      }
+      //update time;
+      return false;
+    } 
+  }
 
 void loop(){
  buttonState = digitalRead(buttonPin);
@@ -60,10 +128,13 @@ void loop(){
   lastButtonState = buttonState;
   if(Update == ON)
   {
-    TimeUpdate();
-    tm1637.display(TimeDisp);
+    if (!currentUpdate()){
+      TimeUpdate();
+    }
+    tm1637.display(DISPLAY_VALUE);
     if (timeLeftSeconds > 0) {
       if (!mosfetStateHigh){
+        setReferenceCurrent();
         digitalWrite(mosfetPin, HIGH); 
         mosfetStateHigh = true;
       }
@@ -89,11 +160,9 @@ void TimingISR()
 
 void TimeUpdate(void)
 {
-  Serial.println("1");
   if(ClockPoint)
     tm1637.point(POINT_ON);//POINT_ON = 1,POINT_OFF = 0;
   else tm1637.point(POINT_OFF); 
-  Serial.println("2");
 
   int hours = timeLeftSeconds/3600;
   int mins = timeLeftSeconds%3600/60;
@@ -101,21 +170,21 @@ void TimeUpdate(void)
     Serial.println("3");
 
   if (hours>0){
-    TimeDisp[2] = mins / 10;
-    TimeDisp[3] = mins % 10;
-    TimeDisp[0] = hours / 10;
-    TimeDisp[1] = hours % 10;
+    DISPLAY_VALUE[2] = mins / 10;
+    DISPLAY_VALUE[3] = mins % 10;
+    DISPLAY_VALUE[0] = hours / 10;
+    DISPLAY_VALUE[1] = hours % 10;
   } else {
-    TimeDisp[2] = seconds / 10;
-    TimeDisp[3] = seconds % 10;
-    TimeDisp[0] = mins / 10;
-    TimeDisp[1] = mins % 10;
+    DISPLAY_VALUE[2] = seconds / 10;
+    DISPLAY_VALUE[3] = seconds % 10;
+    DISPLAY_VALUE[0] = mins / 10;
+    DISPLAY_VALUE[1] = mins % 10;
   }
-  Serial.print(TimeDisp[0]);
-  Serial.print(TimeDisp[1]);
+  Serial.print(DISPLAY_VALUE[0]);
+  Serial.print(DISPLAY_VALUE[1]);
   Serial.print(":");
-  Serial.print(TimeDisp[2]);
-  Serial.println(TimeDisp[3]);
+  Serial.print(DISPLAY_VALUE[2]);
+  Serial.println(DISPLAY_VALUE[3]);
   Update = OFF;
 }
 

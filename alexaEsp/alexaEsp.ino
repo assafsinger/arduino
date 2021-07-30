@@ -72,23 +72,23 @@ void setup()
     Serial.println(WiFi.localIP());
     Serial.println();
     Serial.println(F("adding support for the folowing modules:"));
-    Serial.print(SHUTTERS_MAME);
-    Serial.print(F(","));
-    espalexa.addDevice(SHUTTERS_MAME, shuttersCB);
-    Serial.print(SHUTTERS_SMART_WINDOW);
-    Serial.print(F(","));
-    espalexa.addDevice(SHUTTERS_SMART_WINDOW, smartWindow);
+//    Serial.print(SHUTTERS_MAME);
+//    Serial.print(F(","));
+//    espalexa.addDevice(SHUTTERS_MAME, shuttersCB);
+//    Serial.print(SHUTTERS_SMART_WINDOW);
+//    Serial.print(F(","));
+//    espalexa.addDevice(SHUTTERS_SMART_WINDOW, smartWindow);
     
-//    Serial.print(AC_NAME_HEAT);
-//    Serial.print(F(","));
-//    espalexa.addDevice(AC_NAME_HEAT, acHeat);
-//    
-//    Serial.print(AC_NAME_COOL);
-//    Serial.print(F(","));
-//    espalexa.addDevice(AC_NAME_COOL, acCool);
-//    Serial.print(AC_NAME);
-//    Serial.print(F(","));
-//    espalexa.addDevice(AC_NAME, ac);
+    Serial.print(AC_NAME_HEAT);
+    Serial.print(F(","));
+    espalexa.addDevice(AC_NAME_HEAT, acHeat);
+    
+    Serial.print(AC_NAME_COOL);
+    Serial.print(F(","));
+    espalexa.addDevice(AC_NAME_COOL, acCool);
+    Serial.print(AC_NAME);
+    Serial.print(F(","));
+    espalexa.addDevice(AC_NAME, ac);
     Serial.println();
     
     
