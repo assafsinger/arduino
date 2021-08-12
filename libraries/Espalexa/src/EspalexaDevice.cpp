@@ -28,6 +28,7 @@ EspalexaDevice::EspalexaDevice(String deviceName, DeviceCallbackFunction gnCallb
   _callbackDev = gnCallback;
   _type = t;
   if (t == EspalexaDeviceType::onoff) _type = EspalexaDeviceType::dimmable; //on/off is broken, so make dimmable device instead
+  if (t == EspalexaDeviceType::whitespectrum) _mode = EspalexaColorMode::ct;
   _val = initialValue;
   _val_last = _val;
 }
@@ -60,6 +61,11 @@ EspalexaDeviceProperty EspalexaDevice::getLastChangedProperty()
 }
 
 uint8_t EspalexaDevice::getValue()
+{
+  return _val;
+}
+
+bool EspalexaDevice::getState()
 {
   return _val;
 }
@@ -110,8 +116,7 @@ uint32_t EspalexaDevice::getKelvin()
 uint32_t EspalexaDevice::getRGB()
 {
   if (_rgb != 0) return _rgb; //color has not changed
-  uint8_t rgb[3];
-  float r, g, b;
+  byte rgb[4]{0, 0, 0, 0};
   
   if (_mode == EspalexaColorMode::none) return 0;
 
@@ -122,11 +127,11 @@ uint32_t EspalexaDevice::getRGB()
     float temp = 10000/ _ct; //kelvins = 1,000,000/mired (and that /100)
     float r, g, b;
 
-    if( temp <= 66 ){ 
+    if (temp <= 66) { 
       r = 255; 
       g = temp;
       g = 99.470802 * log(g) - 161.119568;
-      if( temp <= 19){
+      if (temp <= 19) {
           b = 0;
       } else {
           b = temp-10;
@@ -143,6 +148,7 @@ uint32_t EspalexaDevice::getRGB()
     rgb[0] = (byte)constrain(r,0.1,255.1);
     rgb[1] = (byte)constrain(g,0.1,255.1);
     rgb[2] = (byte)constrain(b,0.1,255.1);
+    
   } else if (_mode == EspalexaColorMode::hs)
   {
     float h = ((float)_hue)/65535.0;
@@ -220,6 +226,12 @@ uint32_t EspalexaDevice::getRGB()
   return _rgb;
 }
 
+//white channel for RGBW lights. Always 0 unless colormode is ct
+uint8_t EspalexaDevice::getW()
+{
+  return (getRGB() >> 24) & 0xFF;
+}
+
 uint8_t EspalexaDevice::getR()
 {
   return (getRGB() >> 16) & 0xFF;
@@ -268,6 +280,16 @@ void EspalexaDevice::setValue(uint8_t val)
     _val_last = val;
   }
   _val = val;
+}
+
+void EspalexaDevice::setState(bool onoff)
+{
+  if (onoff) 
+  {
+    setValue(_val_last);
+  } else {
+    setValue(0);
+  }
 }
 
 void EspalexaDevice::setPercent(uint8_t perc)
