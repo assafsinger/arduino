@@ -13,7 +13,9 @@ By default, it's possible to add up to a total of 10 devices (read below on how 
 Each device has a brightness range from 0 to 255, where 0 is off and 255 is fully on.
 You can get a percentage from that value using `espalexa.toPercent(brightness);`
 
-FauxmoESP now also supports dimming!
+[FauxmoESP](https://github.com/vintlabs/fauxmoESP) is now a great alternative that also supports dimming and setting colors!
+
+**⚠️ Do not use Espalexa in a production environment! The API utilized is known to not be permanently stable and may cease functioning at any point.**
 
 #### How do I install the library?
 
@@ -96,7 +98,7 @@ Here is an overview of the devices (light types) Espalexa can emulate:
 | EspalexaDeviceType::whitespectrum        | Color temperature adjustment not working on Dot |
 | EspalexaDeviceType::color                | Works as intended (dimming + color)             |
 | EspalexaDeviceType::extendedcolor        | Color temperature adjustment not working on Dot |
-| EspalexaDeviceType::onoff (experimental) | Works, but is treated as dimmable by Alexa      |
+| EspalexaDeviceType::onoff (experimental) | Deprecated. Treated as dimmable.                |
 
 See the example `EspalexaFullyFeatured` to learn how to define each device type and use the new EspalexaDevice pointer callback function type!
 

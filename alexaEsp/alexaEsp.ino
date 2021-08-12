@@ -30,11 +30,14 @@ long lastSmartWindowCheck = 0;
 #define TIME_OF_DAY_CHECK_INTERVAL 300000 //5 minutes
 
 
-const char * SHUTTERS_MAME = "bedroom window";
-const char * SHUTTERS_SMART_WINDOW = "bedroom smart window";
+const char * SHUTTERS_MAME = "window";
+const char * SHUTTERS_SMART_WINDOW = "smart window";
 const char * AC_NAME_HEAT = "heat";
 const char * AC_NAME_COOL = "cool";
 const char * AC_NAME = "ac";
+
+bool enableShutters = true;
+bool enableAc = false;
 
 //const char* SUPPORTED_MODULES[] = {SHUTTERS_MAME, AC_MAME_HEAT, AC_MAME_COOL, AC_MAME}; //all modules
 
@@ -72,25 +75,29 @@ void setup()
     Serial.println(WiFi.localIP());
     Serial.println();
     Serial.println(F("adding support for the folowing modules:"));
-//    Serial.print(SHUTTERS_MAME);
-//    Serial.print(F(","));
-//    espalexa.addDevice(SHUTTERS_MAME, shuttersCB);
-//    Serial.print(SHUTTERS_SMART_WINDOW);
-//    Serial.print(F(","));
-//    espalexa.addDevice(SHUTTERS_SMART_WINDOW, smartWindow);
+
+    if (enableShutters){
+      Serial.print(SHUTTERS_MAME);
+      Serial.print(F(","));
+      espalexa.addDevice(SHUTTERS_MAME, shuttersCB);
+      Serial.print(SHUTTERS_SMART_WINDOW);
+      Serial.print(F(","));
+      espalexa.addDevice(SHUTTERS_SMART_WINDOW, smartWindow);
+    }
+
+    if (enableAc){
+      Serial.print(AC_NAME_HEAT);
+      Serial.print(F(","));
+      espalexa.addDevice(AC_NAME_HEAT, acHeat);
     
-    Serial.print(AC_NAME_HEAT);
-    Serial.print(F(","));
-    espalexa.addDevice(AC_NAME_HEAT, acHeat);
-    
-    Serial.print(AC_NAME_COOL);
-    Serial.print(F(","));
-    espalexa.addDevice(AC_NAME_COOL, acCool);
-    Serial.print(AC_NAME);
-    Serial.print(F(","));
-    espalexa.addDevice(AC_NAME, ac);
-    Serial.println();
-    
+      Serial.print(AC_NAME_COOL);
+      Serial.print(F(","));
+      espalexa.addDevice(AC_NAME_COOL, acCool);
+      Serial.print(AC_NAME);
+      Serial.print(F(","));
+      espalexa.addDevice(AC_NAME, ac);
+      Serial.println();
+    }
     
     espalexa.begin();
     electraAc.begin();
